@@ -62,11 +62,14 @@ const Categories = (function () {
         return category ? category.name : '未分类';
     }
 
+    const _categoryModalState = { saveHandler: null };
+
     function showCategoryModal(onCreated) {
         const modal = document.getElementById('categoryModal');
         const nameInput = document.getElementById('categoryName');
         const colorPicker = document.getElementById('colorPicker');
         const saveBtn = document.getElementById('saveCategoryBtn');
+        const form = document.getElementById('categoryForm');
 
         let selectedColor = '#6366f1';
 
@@ -82,6 +85,7 @@ const Categories = (function () {
             };
         });
 
+        modal.querySelector('.modal-header h3').textContent = '新建分类';
         nameInput.value = '';
         modal.classList.add('active');
         setTimeout(() => nameInput.focus(), 100);
@@ -108,11 +112,14 @@ const Categories = (function () {
             close();
             if (onCreated) onCreated(category);
             if (onCategoryChange) onCategoryChange();
-
-            saveBtn.removeEventListener('click', saveHandler);
         };
 
-        saveBtn.addEventListener('click', saveHandler);
+        _categoryModalState.saveHandler = saveHandler;
+        saveBtn.onclick = saveHandler;
+        form.onsubmit = (e) => {
+            e.preventDefault();
+            saveHandler();
+        };
     }
 
     function showEditCategoryModal(category, onUpdated) {
@@ -120,6 +127,7 @@ const Categories = (function () {
         const nameInput = document.getElementById('categoryName');
         const colorPicker = document.getElementById('colorPicker');
         const saveBtn = document.getElementById('saveCategoryBtn');
+        const form = document.getElementById('categoryForm');
 
         modal.querySelector('.modal-header h3').textContent = '编辑分类';
 
@@ -159,11 +167,14 @@ const Categories = (function () {
             close();
             if (onUpdated) onUpdated(updated);
             if (onCategoryChange) onCategoryChange();
-
-            saveBtn.removeEventListener('click', saveHandler);
         };
 
-        saveBtn.addEventListener('click', saveHandler);
+        _categoryModalState.saveHandler = saveHandler;
+        saveBtn.onclick = saveHandler;
+        form.onsubmit = (e) => {
+            e.preventDefault();
+            saveHandler();
+        };
     }
 
     function showCategoryContextMenu(event, category, onSelect) {
@@ -188,12 +199,19 @@ const Categories = (function () {
         const items = [
             { label: '✏️  编辑分类', action: () => showEditCategoryModal(category) },
             { label: '🗑️  删除分类', danger: true, action: () => {
-                if (confirm(`确定要删除分类「${category.name}」吗？该分类下的笔记将变为未分类。`)) {
-                    Storage.deleteCategory(category.id);
-                    Toast.show('分类已删除', 'success');
-                    if (onSelect) onSelect(null);
-                    if (onCategoryChange) onCategoryChange();
-                }
+                Confirm.show({
+                    title: '删除分类',
+                    message: `确定要删除分类「${category.name}」吗？该分类下的笔记将变为未分类。`,
+                    okText: '删除',
+                    icon: '🗑️',
+                    danger: true,
+                    onOk: () => {
+                        Storage.deleteCategory(category.id);
+                        Toast.show('分类已删除', 'success');
+                        if (onSelect) onSelect(null);
+                        if (onCategoryChange) onCategoryChange();
+                    }
+                });
             }}
         ];
 
@@ -253,8 +271,66 @@ const Categories = (function () {
         getCategoryColor,
         getCategoryName,
         showCategoryModal,
-        showEditCategoryModal
+        showEditCategoryModal,
+        escapeHtml
     };
+})();
+
+const Confirm = (function () {
+    function show(options) {
+        const {
+            title = '确认操作',
+            message = '',
+            okText = '确认',
+            cancelText = '取消',
+            icon = '⚠️',
+            danger = true,
+            onOk = null,
+            onCancel = null
+        } = options || {};
+
+        const modal = document.getElementById('confirmModal');
+        const iconEl = document.getElementById('confirmIcon');
+        const titleEl = document.getElementById('confirmTitle');
+        const messageEl = document.getElementById('confirmMessage');
+        const okBtn = document.getElementById('confirmOkBtn');
+        const cancelBtn = document.getElementById('confirmCancelBtn');
+
+        iconEl.textContent = icon;
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        okBtn.textContent = okText;
+        cancelBtn.textContent = cancelText;
+
+        if (danger) {
+            okBtn.classList.add('btn-danger');
+        } else {
+            okBtn.classList.remove('btn-danger');
+        }
+
+        const close = () => {
+            modal.classList.remove('active');
+            okBtn.onclick = null;
+            cancelBtn.onclick = null;
+        };
+
+        okBtn.onclick = () => {
+            close();
+            if (onOk) onOk();
+        };
+
+        cancelBtn.onclick = () => {
+            close();
+            if (onCancel) onCancel();
+        };
+
+        const backdrop = modal.querySelector('[data-close="confirm"]');
+        if (backdrop) backdrop.onclick = cancelBtn.onclick;
+
+        modal.classList.add('active');
+    }
+
+    return { show };
 })();
 
 const Toast = (function () {

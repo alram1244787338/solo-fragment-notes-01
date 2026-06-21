@@ -215,11 +215,18 @@ const Notes = (function () {
         if (!note) return;
 
         const title = note.title || '(无标题)';
-        if (confirm(`确定要删除笔记「${title}」吗？此操作不可撤销。`)) {
-            Storage.deleteNote(noteId);
-            Toast.show('笔记已删除', 'success');
-            if (onDeleted) onDeleted(noteId);
-        }
+        Confirm.show({
+            title: '删除笔记',
+            message: `确定要删除笔记「${title}」吗？此操作不可撤销。`,
+            okText: '删除',
+            icon: '🗑️',
+            danger: true,
+            onOk: () => {
+                Storage.deleteNote(noteId);
+                Toast.show('笔记已删除', 'success');
+                if (onDeleted) onDeleted(noteId);
+            }
+        });
     }
 
     function formatRelativeTime(timestamp) {

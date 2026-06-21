@@ -48,6 +48,23 @@
                 <ul class="nav-list" id="categoryList"></ul>
             </nav>
 
+            <div class="sidebar-actions">
+                <button class="sidebar-action-btn" id="themeToggleBtn" title="切换主题">
+                    <span class="theme-icon-light">🌙</span>
+                    <span class="theme-icon-dark" style="display:none">☀️</span>
+                    <span class="sidebar-action-text" id="themeToggleText">暗色模式</span>
+                </button>
+                <button class="sidebar-action-btn" id="exportBtn" title="导出数据">
+                    <span>📤</span>
+                    <span class="sidebar-action-text">导出</span>
+                </button>
+                <button class="sidebar-action-btn" id="importBtn" title="导入数据">
+                    <span>📥</span>
+                    <span class="sidebar-action-text">导入</span>
+                </button>
+                <input type="file" id="importFileInput" accept=".json" style="display:none">
+            </div>
+
             <div class="sidebar-footer">
                 <button class="btn-primary" id="newNoteBtn">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -185,6 +202,21 @@
             <div class="modal-footer">
                 <button class="btn-secondary" data-close="modal">取消</button>
                 <button class="btn-primary" id="saveCategoryBtn">保存分类</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="confirmModal">
+        <div class="modal-backdrop" data-close="confirm"></div>
+        <div class="modal-dialog">
+            <div class="modal-body" style="padding:28px 24px;">
+                <div class="confirm-icon" id="confirmIcon">⚠️</div>
+                <h3 class="confirm-title" id="confirmTitle">确认操作</h3>
+                <p class="confirm-message" id="confirmMessage"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="confirmCancelBtn">取消</button>
+                <button class="btn-primary btn-danger" id="confirmOkBtn">确认</button>
             </div>
         </div>
     </div>

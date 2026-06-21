@@ -7,7 +7,86 @@
         sortType: 'updated_desc'
     };
 
+    const THEME_KEY = 'fragment_theme';
+
+    function applyTheme(theme) {
+        const isDark = theme === 'dark';
+        document.body.classList.toggle('dark', isDark);
+        const iconLight = document.querySelector('.theme-icon-light');
+        const iconDark = document.querySelector('.theme-icon-dark');
+        const textEl = document.getElementById('themeToggleText');
+        if (iconLight) iconLight.style.display = isDark ? 'none' : '';
+        if (iconDark) iconDark.style.display = isDark ? '' : 'none';
+        if (textEl) textEl.textContent = isDark ? '亮色模式' : '暗色模式';
+    }
+
+    function initTheme() {
+        const saved = localStorage.getItem(THEME_KEY);
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const theme = saved || (prefersDark ? 'dark' : 'light');
+        applyTheme(theme);
+    }
+
+    function toggleTheme() {
+        const isDark = document.body.classList.contains('dark');
+        const newTheme = isDark ? 'light' : 'dark';
+        localStorage.setItem(THEME_KEY, newTheme);
+        applyTheme(newTheme);
+    }
+
+    function exportData() {
+        const data = Storage.exportData();
+        const json = JSON.stringify(data, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const date = new Date();
+        const stamp = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
+        a.href = url;
+        a.download = `fragment-notes-${stamp}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        Toast.show('数据已导出', 'success');
+    }
+
+    function importData(file) {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                Confirm.show({
+                    title: '导入数据',
+                    message: '导入将覆盖当前所有笔记和分类，确定继续吗？',
+                    okText: '覆盖导入',
+                    icon: '📥',
+                    danger: true,
+                    onOk: () => {
+                        const ok = Storage.importData(data);
+                        if (ok) {
+                            Toast.show('数据已导入', 'success');
+                            state.selectedNoteId = null;
+                            state.selectedCategoryId = null;
+                            refreshAll();
+                        } else {
+                            Toast.show('导入失败，文件格式不正确', 'error');
+                        }
+                    }
+                });
+            } catch (err) {
+                Toast.show('导入失败，无法解析文件', 'error');
+            }
+        };
+        reader.onerror = () => {
+            Toast.show('读取文件失败', 'error');
+        };
+        reader.readAsText(file);
+    }
+
     function init() {
+        initTheme();
         Storage.initDefaultCategories();
         setupEventListeners();
         Categories.setChangeHandler(refreshAll);
@@ -78,6 +157,27 @@
                 if (modal) modal.classList.remove('active');
             });
         });
+
+        const themeBtn = document.getElementById('themeToggleBtn');
+        if (themeBtn) {
+            themeBtn.addEventListener('click', toggleTheme);
+        }
+
+        const exportBtn = document.getElementById('exportBtn');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', exportData);
+        }
+
+        const importBtn = document.getElementById('importBtn');
+        const importInput = document.getElementById('importFileInput');
+        if (importBtn && importInput) {
+            importBtn.addEventListener('click', () => importInput.click());
+            importInput.addEventListener('change', (e) => {
+                const file = e.target.files && e.target.files[0];
+                if (file) importData(file);
+                importInput.value = '';
+            });
+        }
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {

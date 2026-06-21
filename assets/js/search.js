@@ -20,19 +20,27 @@ const Search = (function () {
         });
     }
 
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
     function highlightText(text, keyword) {
         if (!text || !keyword || !keyword.trim()) {
-            return text || '';
+            return escapeHtml(text || '');
         }
 
         const kw = keyword.trim();
-        if (!kw) return text || '';
+        if (!kw) return escapeHtml(text || '');
 
+        const escaped = escapeHtml(text);
         const keywords = kw.split(/\s+/).filter(k => k.length > 0);
-        let result = text;
+        let result = escaped;
 
         keywords.forEach(k => {
-            const regex = new RegExp(escapeRegExp(k), 'gi');
+            const safeK = escapeHtml(k);
+            const regex = new RegExp(escapeRegExp(safeK), 'gi');
             result = result.replace(regex, match => `<span class="highlight">${match}</span>`);
         });
 

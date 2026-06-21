@@ -917,6 +917,213 @@ input:focus, select:focus, textarea:focus {
     }
 }
 
+.sidebar-actions {
+    padding: 12px 16px 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border-top: 1px solid var(--border-light);
+}
+
+.sidebar-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    color: var(--text-secondary);
+    transition: all 0.15s;
+    text-align: left;
+    width: 100%;
+}
+
+.sidebar-action-btn:hover {
+    background: var(--bg);
+    color: var(--text-primary);
+}
+
+.sidebar-action-btn > span:first-child {
+    font-size: 15px;
+    width: 18px;
+    text-align: center;
+}
+
+.sidebar-action-text {
+    flex: 1;
+}
+
+.confirm-icon {
+    font-size: 40px;
+    text-align: center;
+    margin-bottom: 12px;
+}
+
+.confirm-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-align: center;
+    margin-bottom: 8px;
+}
+
+.confirm-message {
+    font-size: 14px;
+    color: var(--text-secondary);
+    text-align: center;
+    line-height: 1.6;
+}
+
+.btn-danger {
+    background: #ef4444 !important;
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
+}
+
+.btn-danger:hover {
+    background: #dc2626 !important;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+body.dark {
+    --bg: #0f172a;
+    --bg-card: #1e293b;
+    --bg-sidebar: #1e293b;
+    --text-primary: #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --text-muted: #64748b;
+    --border: #334155;
+    --border-light: #273449;
+    --primary-light: rgba(99, 102, 241, 0.15);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+}
+
+body.dark .highlight {
+    background: #854d0e;
+    color: #fef9c3;
+}
+
+body.dark input,
+body.dark select,
+body.dark textarea {
+    background: #0f172a;
+    border-color: #334155;
+    color: #f1f5f9;
+}
+
+body.dark input:focus,
+body.dark select:focus,
+body.dark textarea:focus {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+body.dark .search-box input {
+    background: #0f172a;
+}
+
+body.dark .search-box input:focus {
+    background: #1e293b;
+}
+
+body.dark .nav-item:hover {
+    background: #273449;
+}
+
+body.dark .nav-item.active {
+    background: rgba(99, 102, 241, 0.15);
+    color: #a5b4fc;
+}
+
+body.dark .nav-count {
+    background: #0f172a;
+    color: #64748b;
+}
+
+body.dark .nav-item.active .nav-count {
+    background: rgba(99, 102, 241, 0.2);
+    color: #a5b4fc;
+}
+
+body.dark .icon-btn:hover {
+    background: #334155;
+}
+
+body.dark .sidebar-action-btn:hover {
+    background: #334155;
+}
+
+body.dark .note-card {
+    background: #1e293b;
+    border-color: #273449;
+}
+
+body.dark .note-card:hover {
+    border-color: #334155;
+}
+
+body.dark .btn-secondary {
+    background: #334155;
+    color: #cbd5e1;
+}
+
+body.dark .btn-secondary:hover {
+    background: #475569;
+    color: #f1f5f9;
+}
+
+body.dark .tag {
+    background: #334155;
+    color: #cbd5e1;
+}
+
+body.dark .detail-tags .tag {
+    background: rgba(99, 102, 241, 0.15);
+    color: #a5b4fc;
+}
+
+body.dark .timeline-item {
+    background: #1e293b;
+    border-color: #273449;
+}
+
+body.dark .timeline-item:hover {
+    border-color: #334155;
+}
+
+body.dark .color-option.active {
+    border-color: #f1f5f9;
+}
+
+body.dark .toast {
+    background: #334155;
+}
+
+body.dark ::-webkit-scrollbar-thumb {
+    background: #475569;
+}
+
+body.dark ::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+body.dark .context-menu div:hover {
+    background: #334155 !important;
+}
+
+@media (max-width: 1200px) {
+    .detail-panel {
+        width: 380px;
+    }
+}
+
+@media (max-width: 960px) {
+    .detail-panel {
+        display: none;
+    }
+}
+
 @media (max-width: 768px) {
     .sidebar {
         width: 240px;
