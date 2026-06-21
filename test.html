@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>单元测试 · 碎片笔记</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            padding: 32px;
+            line-height: 1.6;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { font-size: 28px; margin-bottom: 8px; }
+        .subtitle { color: #64748b; margin-bottom: 24px; }
+        .stats {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+            padding: 16px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .stat {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            border-radius: 8px;
+        }
+        .stat-value { font-size: 32px; font-weight: 700; }
+        .stat-label { font-size: 13px; color: #64748b; }
+        .stat.pass .stat-value { color: #16a34a; }
+        .stat.fail .stat-value { color: #dc2626; }
+        .stat.total .stat-value { color: #2563eb; }
+        .module {
+            margin-bottom: 24px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .module-header {
+            padding: 16px 20px;
+            background: #f1f5f9;
+            font-weight: 600;
+            font-size: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .module-stats {
+            font-size: 13px;
+            color: #64748b;
+            font-weight: normal;
+        }
+        .test-list { padding: 8px 0; }
+        .test-item {
+            padding: 10px 20px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 14px;
+        }
+        .test-item:last-child { border-bottom: none; }
+        .test-icon {
+            flex-shrink: 0;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 1px;
+        }
+        .test-pass .test-icon { background: #dcfce7; color: #16a34a; }
+        .test-fail .test-icon { background: #fee2e2; color: #dc2626; }
+        .test-name { flex: 1; }
+        .test-pass .test-name { color: #16a34a; }
+        .test-fail .test-name { color: #dc2626; }
+        .test-error {
+            margin-top: 4px;
+            padding: 8px 12px;
+            background: #fef2f2;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #991b1b;
+            white-space: pre-wrap;
+        }
+        .controls {
+            margin-top: 24px;
+            text-align: center;
+        }
+        button {
+            padding: 10px 24px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover { background: #1d4ed8; }
+        .running { opacity: 0.7; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 单元测试 · 碎片笔记</h1>
+        <p class="subtitle">纯函数逻辑测试，不含 DOM 和 UI 操作</p>
+
+        <div class="stats">
+            <div class="stat total">
+                <div class="stat-value" id="totalCount">0</div>
+                <div class="stat-label">总用例</div>
+            </div>
+            <div class="stat pass">
+                <div class="stat-value" id="passCount">0</div>
+                <div class="stat-label">通过</div>
+            </div>
+            <div class="stat fail">
+                <div class="stat-value" id="failCount">0</div>
+                <div class="stat-label">失败</div>
+            </div>
+        </div>
+
+        <div id="testResults"></div>
+
+        <div class="controls">
+            <button onclick="runTests()">🔄 重新运行测试</button>
+        </div>
+    </div>
+
+    <script src="assets/js/storage.js"></script>
+    <script src="assets/js/categories.js"></script>
+    <script src="assets/js/search.js"></script>
+
+    <script>
+        const TEST_BACKUP_KEY = '__test_backup__';
+        let testResults = [];
+        let currentModule = null;
+
+        function assert(condition, message) {
+            if (!condition) {
+                throw new Error(message || '断言失败');
+            }
+        }
+
+        function assertEqual(actual, expected, message) {
+            if (actual !== expected) {
+                throw new Error(`${message || '断言失败'}\n期望: ${JSON.stringify(expected)}\n实际: ${JSON.stringify(actual)}`);
+            }
+        }
+
+        function assertDeepEqual(actual, expected, message) {
+            const actualStr = JSON.stringify(actual);
+            const expectedStr = JSON.stringify(expected);
+            if (actualStr !== expectedStr) {
+                throw new Error(`${message || '深度断言失败'}\n期望: ${expectedStr}\n实际: ${actualStr}`);
+            }
+        }
+
+        function assertThrows(fn, message) {
+            let threw = false;
+            try { fn(); } catch (e) { threw = true; }
+            if (!threw) {
+                throw new Error(message || '期望抛出异常但没有抛出');
+            }
+        }
+
+        function module(name) {
+            currentModule = { name, tests: [] };
+            testResults.push(currentModule);
+        }
+
+        function test(name, fn) {
+            if (!currentModule) {
+                currentModule = { name: '未分组', tests: [] };
+                testResults.push(currentModule);
+            }
+            currentModule.tests.push({ name, fn });
+        }
+
+        function backupData() {
+            const backup = {
+                notes: localStorage.getItem('fragment_notes'),
+                categories: localStorage.getItem('fragment_categories')
+            };
+            localStorage.setItem(TEST_BACKUP_KEY, JSON.stringify(backup));
+        }
+
+        function restoreData() {
+            try {
+                const raw = localStorage.getItem(TEST_BACKUP_KEY);
+                if (raw) {
+                    const backup = JSON.parse(raw);
+                    if (backup.notes === null) localStorage.removeItem('fragment_notes');
+                    else localStorage.setItem('fragment_notes', backup.notes);
+                    if (backup.categories === null) localStorage.removeItem('fragment_categories');
+                    else localStorage.setItem('fragment_categories', backup.categories);
+                }
+            } catch (e) {
+                console.error('恢复数据失败:', e);
+            }
+            localStorage.removeItem(TEST_BACKUP_KEY);
+        }
+
+        function clearTestData() {
+            localStorage.removeItem('fragment_notes');
+            localStorage.removeItem('fragment_categories');
+        }
+
+        async function runTests() {
+            testResults = [];
+            document.getElementById('testResults').innerHTML = '<p style="padding:20px; text-align:center; color:#64748b;">⏳ 测试运行中...</p>';
+            document.body.classList.add('running');
+
+            backupData();
+            clearTestData();
+
+            defineTests();
+
+            let total = 0, pass = 0, fail = 0;
+            let html = '';
+
+            for (const mod of testResults) {
+                let modulePass = 0, moduleFail = 0;
+                let moduleHtml = `<div class="test-list">`;
+
+                for (const t of mod.tests) {
+                    total++;
+                    try {
+                        clearTestData();
+                        await t.fn();
+                        pass++;
+                        modulePass++;
+                        moduleHtml += `
+                            <div class="test-item test-pass">
+                                <span class="test-icon">✓</span>
+                                <span class="test-name">${t.name}</span>
+                            </div>
+                        `;
+                    } catch (e) {
+                        fail++;
+                        moduleFail++;
+                        moduleHtml += `
+                            <div class="test-item test-fail">
+                                <span class="test-icon">✗</span>
+                                <div>
+                                    <div class="test-name">${t.name}</div>
+                                    <div class="test-error">${e.message}</div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+
+                moduleHtml += `</div>`;
+
+                html += `
+                    <div class="module">
+                        <div class="module-header">
+                            <span>📦 ${mod.name}</span>
+                            <span class="module-stats">${modulePass} 通过 / ${moduleFail} 失败 / ${mod.tests.length} 总用例</span>
+                        </div>
+                        ${moduleHtml}
+                    </div>
+                `;
+            }
+
+            document.getElementById('totalCount').textContent = total;
+            document.getElementById('passCount').textContent = pass;
+            document.getElementById('failCount').textContent = fail;
+            document.getElementById('testResults').innerHTML = html;
+            document.body.classList.remove('running');
+
+            restoreData();
+        }
+
+        function defineTests() {
+            module('storage.js');
+
+            test('generateId() - 生成唯一ID', () => {
+                const id1 = Storage.generateId();
+                const id2 = Storage.generateId();
+                assert(typeof id1 === 'string' && id1.length > 0, 'ID应为非空字符串');
+                assert(id1 !== id2, '两次调用应生成不同ID');
+            });
+
+            test('createNote() - 创建笔记', () => {
+                const note = Storage.createNote({
+                    title: '测试笔记',
+                    content: '测试内容',
+                    categoryId: null,
+                    tags: ['tag1', 'tag2']
+                });
+                assert(note.id, '应有ID');
+                assertEqual(note.title, '测试笔记');
+                assertEqual(note.content, '测试内容');
+                assertDeepEqual(note.tags, ['tag1', 'tag2']);
+                assert(note.createdAt > 0, '应有创建时间');
+                assert(note.updatedAt > 0, '应有更新时间');
+            });
+
+            test('getNotes() - 获取所有笔记', () => {
+                clearTestData();
+                Storage.createNote({ title: '笔记1', content: '', categoryId: null, tags: [] });
+                Storage.createNote({ title: '笔记2', content: '', categoryId: null, tags: [] });
+                const notes = Storage.getNotes();
+                assertEqual(notes.length, 2);
+            });
+
+            test('getNoteById() - 根据ID获取笔记', () => {
+                const note = Storage.createNote({ title: '查找测试', content: '', categoryId: null, tags: [] });
+                const found = Storage.getNoteById(note.id);
+                assertEqual(found.id, note.id);
+                assertEqual(found.title, '查找测试');
+                const notFound = Storage.getNoteById('non-existent-id');
+                assertEqual(notFound, null);
+            });
+
+            test('updateNote() - 更新笔记', () => {
+                const note = Storage.createNote({ title: '原标题', content: '原内容', categoryId: null, tags: [] });
+                const beforeUpdate = note.updatedAt;
+                const waitUntil = Date.now() + 1;
+                while (Date.now() < waitUntil) {}
+                const updated = Storage.updateNote(note.id, {
+                    title: '新标题',
+                    content: '新内容'
+                });
+                assert(updated.updatedAt >= beforeUpdate, '更新时间不应早于原时间');
+                assert(updated.updatedAt > 0, '更新时间应为有效时间戳');
+                assertEqual(updated.title, '新标题');
+                assertEqual(updated.content, '新内容');
+                const notUpdated = Storage.updateNote('non-existent', { title: 'xxx' });
+                assertEqual(notUpdated, null);
+            });
+
+            test('updateNote() - 部分字段更新不影响其他字段', () => {
+                const note = Storage.createNote({
+                    title: '原标题',
+                    content: '原内容',
+                    categoryId: 'cat1',
+                    tags: ['a', 'b']
+                });
+                Storage.updateNote(note.id, { title: '新标题' });
+                const found = Storage.getNoteById(note.id);
+                assertEqual(found.content, '原内容', '内容不应被修改');
+                assertEqual(found.categoryId, 'cat1', '分类不应被修改');
+                assertDeepEqual(found.tags, ['a', 'b'], '标签不应被修改');
+            });
+
+            test('deleteNote() - 删除笔记', () => {
+                const note = Storage.createNote({ title: '待删除', content: '', categoryId: null, tags: [] });
+                const deleteResult = Storage.deleteNote(note.id);
+                assertEqual(deleteResult, true);
+                const found = Storage.getNoteById(note.id);
+                assertEqual(found, null);
+                const deleteAgain = Storage.deleteNote(note.id);
+                assertEqual(deleteAgain, false);
+            });
+
+            test('createCategory() - 创建分类', () => {
+                const cat = Storage.createCategory({ name: '测试分类', color: '#ff0000' });
+                assert(cat.id, '应有ID');
+                assertEqual(cat.name, '测试分类');
+                assertEqual(cat.color, '#ff0000');
+                assert(cat.createdAt > 0, '应有创建时间');
+            });
+
+            test('getCategories() - 获取所有分类', () => {
+                clearTestData();
+                Storage.createCategory({ name: '分类1', color: '#f00' });
+                Storage.createCategory({ name: '分类2', color: '#0f0' });
+                const cats = Storage.getCategories();
+                assertEqual(cats.length, 2);
+            });
+
+            test('getCategoryById() - 根据ID获取分类', () => {
+                const cat = Storage.createCategory({ name: '查找分类', color: '#00f' });
+                const found = Storage.getCategoryById(cat.id);
+                assertEqual(found.id, cat.id);
+                assertEqual(found.name, '查找分类');
+                const notFound = Storage.getCategoryById('non-existent');
+                assertEqual(notFound, null);
+            });
+
+            test('updateCategory() - 更新分类', () => {
+                const cat = Storage.createCategory({ name: '原名', color: '#f00' });
+                const updated = Storage.updateCategory(cat.id, { name: '新名', color: '#0ff' });
+                assertEqual(updated.name, '新名');
+                assertEqual(updated.color, '#0ff');
+                const notUpdated = Storage.updateCategory('non-existent', { name: 'xxx' });
+                assertEqual(notUpdated, null);
+            });
+
+            test('deleteCategory() - 删除分类', () => {
+                const cat = Storage.createCategory({ name: '待删', color: '#f00' });
+                const delResult = Storage.deleteCategory(cat.id);
+                assertEqual(delResult, true);
+                const found = Storage.getCategoryById(cat.id);
+                assertEqual(found, null);
+            });
+
+            test('getNotesByCategory() - 按分类获取笔记', () => {
+                clearTestData();
+                const cat = Storage.createCategory({ name: '工作', color: '#f00' });
+                Storage.createNote({ title: '工作笔记1', content: '', categoryId: cat.id, tags: [] });
+                Storage.createNote({ title: '工作笔记2', content: '', categoryId: cat.id, tags: [] });
+                Storage.createNote({ title: '其他笔记', content: '', categoryId: null, tags: [] });
+                const workNotes = Storage.getNotesByCategory(cat.id);
+                assertEqual(workNotes.length, 2);
+                const allNotes = Storage.getNotesByCategory(null);
+                assertEqual(allNotes.length, 3);
+            });
+
+            test('getNoteCountByCategory() - 获取分类笔记数量', () => {
+                clearTestData();
+                const cat = Storage.createCategory({ name: '测试', color: '#f00' });
+                Storage.createNote({ title: '笔记1', content: '', categoryId: cat.id, tags: [] });
+                Storage.createNote({ title: '笔记2', content: '', categoryId: cat.id, tags: [] });
+                const count = Storage.getNoteCountByCategory(cat.id);
+                assertEqual(count, 2);
+                const allCount = Storage.getNoteCountByCategory(null);
+                assertEqual(allCount, 2);
+            });
+
+            test('exportData() - 导出数据结构正确', () => {
+                clearTestData();
+                const cat = Storage.createCategory({ name: '导出分类', color: '#f00' });
+                const note = Storage.createNote({ title: '导出笔记', content: '内容', categoryId: cat.id, tags: ['a'] });
+                const data = Storage.exportData();
+                assert(data.notes, '应有notes字段');
+                assert(data.categories, '应有categories字段');
+                assert(data.exportedAt > 0, '应有exportedAt字段');
+                assertEqual(data.version, '1.0');
+                assertEqual(data.notes.length, 1);
+                assertEqual(data.categories.length, 1);
+            });
+
+            test('exportData() - 特殊字符正确序列化', () => {
+                const note = Storage.createNote({
+                    title: '测试"引号"',
+                    content: '第一行\n第二行"引号"\'单引号\'[括号](圆括号)',
+                    categoryId: null,
+                    tags: []
+                });
+                const data = Storage.exportData();
+                const jsonStr = JSON.stringify(data);
+                const parsed = JSON.parse(jsonStr);
+                assertEqual(parsed.notes[0].title, '测试"引号"');
+                assert(parsed.notes[0].content.includes('\n'), '换行符应保留');
+                assert(parsed.notes[0].content.includes('"引号"'), '双引号应保留');
+                assert(parsed.notes[0].content.includes("'单引号'"), '单引号应保留');
+            });
+
+            test('importData() - 导入数据正确保存', () => {
+                clearTestData();
+                const importData = {
+                    notes: [{
+                        id: 'test-id',
+                        title: '导入笔记',
+                        content: '导入内容',
+                        categoryId: null,
+                        tags: ['imported'],
+                        createdAt: 1000,
+                        updatedAt: 2000
+                    }],
+                    categories: [{
+                        id: 'test-cat',
+                        name: '导入分类',
+                        color: '#f00',
+                        createdAt: 1000
+                    }]
+                };
+                const result = Storage.importData(importData);
+                assertEqual(result, true);
+                const notes = Storage.getNotes();
+                const cats = Storage.getCategories();
+                assertEqual(notes.length, 1);
+                assertEqual(cats.length, 1);
+                assertEqual(notes[0].id, 'test-id');
+            });
+
+            test('importData() - 特殊字符导入后内容完整', () => {
+                clearTestData();
+                const originalContent = '第一行\n第二行"双引号"\'单引号\'[方括号]{花括号}';
+                const importData = {
+                    notes: [{
+                        id: 'special-chars',
+                        title: '特殊字符',
+                        content: originalContent,
+                        categoryId: null,
+                        tags: [],
+                        createdAt: Date.now(),
+                        updatedAt: Date.now()
+                    }],
+                    categories: []
+                };
+                Storage.importData(importData);
+                const note = Storage.getNoteById('special-chars');
+                assertEqual(note.content, originalContent);
+            });
+
+            test('importData() - 空数据或null返回false', () => {
+                assertEqual(Storage.importData(null), false);
+                assertEqual(Storage.importData(undefined), false);
+                assertEqual(Storage.importData({}), false);
+            });
+
+            test('isValidNote() - 验证有效笔记', () => {
+                const validNote = {
+                    id: 'test',
+                    title: '标题',
+                    content: '内容',
+                    categoryId: null,
+                    tags: [],
+                    createdAt: Date.now(),
+                    updatedAt: Date.now()
+                };
+                assertEqual(Storage.isValidNote(validNote), true);
+
+                const withCatId = { ...validNote, categoryId: 'cat1' };
+                assertEqual(Storage.isValidNote(withCatId), true);
+            });
+
+            test('isValidNote() - 验证无效笔记', () => {
+                assertEqual(Storage.isValidNote(null), false);
+                assertEqual(Storage.isValidNote(undefined), false);
+                assertEqual(Storage.isValidNote({}), false);
+
+                const missingId = {
+                    title: '标题', content: '内容', categoryId: null, tags: [],
+                    createdAt: Date.now(), updatedAt: Date.now()
+                };
+                assertEqual(Storage.isValidNote(missingId), false);
+
+                const invalidTitle = {
+                    id: 'test', title: 123, content: '内容', categoryId: null, tags: [],
+                    createdAt: Date.now(), updatedAt: Date.now()
+                };
+                assertEqual(Storage.isValidNote(invalidTitle), false);
+
+                const invalidCategoryId = {
+                    id: 'test', title: '标题', content: '内容', categoryId: 123, tags: [],
+                    createdAt: Date.now(), updatedAt: Date.now()
+                };
+                assertEqual(Storage.isValidNote(invalidCategoryId), false);
+
+                const invalidTags = {
+                    id: 'test', title: '标题', content: '内容', categoryId: null, tags: 'not-array',
+                    createdAt: Date.now(), updatedAt: Date.now()
+                };
+                assertEqual(Storage.isValidNote(invalidTags), false);
+            });
+
+            test('isValidCategory() - 验证有效分类', () => {
+                const validCat = {
+                    id: 'cat1',
+                    name: '分类',
+                    color: '#ff0000',
+                    createdAt: Date.now()
+                };
+                assertEqual(Storage.isValidCategory(validCat), true);
+            });
+
+            test('isValidCategory() - 验证无效分类', () => {
+                assertEqual(Storage.isValidCategory(null), false);
+                assertEqual(Storage.isValidCategory({}), false);
+
+                const missingId = { name: '分类', color: '#f00', createdAt: Date.now() };
+                assertEqual(Storage.isValidCategory(missingId), false);
+
+                const invalidName = { id: '1', name: '', color: '#f00', createdAt: Date.now() };
+                assertEqual(Storage.isValidCategory(invalidName), false);
+
+                const invalidColor = { id: '1', name: '分类', color: '', createdAt: Date.now() };
+                assertEqual(Storage.isValidCategory(invalidColor), false);
+            });
+
+            module('search.js');
+
+            test('escapeRegExp() - 转义所有正则特殊字符', () => {
+                const special = '.*+?^${}()|[]\\';
+                const escaped = Search.escapeRegExp(special);
+                assertEqual(escaped, '\\.\\*\\+\\?\\^\\$\\{\\}\\(\\)\\|\\[\\]\\\\');
+            });
+
+            test('escapeRegExp() - 普通字符串不改变', () => {
+                assertEqual(Search.escapeRegExp('hello world'), 'hello world');
+                assertEqual(Search.escapeRegExp('中文测试'), '中文测试');
+                assertEqual(Search.escapeRegExp('12345'), '12345');
+            });
+
+            test('escapeRegExp() - 转义后可安全用于RegExp', () => {
+                const pattern = Search.escapeRegExp('[特殊](字符)*');
+                const regex = new RegExp(pattern);
+                assert(regex.test('这是[特殊](字符)*测试'), '转义后的正则应能正常匹配');
+                assert(!regex.test('这是特殊字符测试'), '不匹配不包含特殊字符的文本');
+            });
+
+            test('escapeHtml() - 转义HTML特殊字符', () => {
+                const scriptTag = '<' + 'script>alert("xss")<' + '/script>';
+                const result = Search.escapeHtml(scriptTag);
+                assert(!result.includes('<' + 'script>'), 'script开始标签应被转义');
+                assert(!result.includes('<' + '/script>'), 'script结束标签应被转义');
+                assert(result.includes('&lt;'), '< 应被转义为 &lt;');
+                assert(result.includes('&gt;'), '> 应被转义为 &gt;');
+
+                const specialChars = Search.escapeHtml('&<>');
+                assert(specialChars.includes('&amp;'), '& 应被转义');
+                assert(specialChars.includes('&lt;'), '< 应被转义');
+                assert(specialChars.includes('&gt;'), '> 应被转义');
+            });
+
+            test('escapeHtml() - 普通文本不改变', () => {
+                assertEqual(Search.escapeHtml('hello world'), 'hello world');
+                assertEqual(Search.escapeHtml(''), '');
+                assertEqual(Search.escapeHtml(null), '');
+                assertEqual(Search.escapeHtml(undefined), '');
+            });
+
+            test('search() - 空关键词返回所有笔记', () => {
+                const notes = [
+                    { id: '1', title: 'a', content: '', tags: [] },
+                    { id: '2', title: 'b', content: '', tags: [] }
+                ];
+                assertDeepEqual(Search.search(notes, ''), notes);
+                assertDeepEqual(Search.search(notes, '   '), notes);
+                assertDeepEqual(Search.search(notes, null), notes);
+            });
+
+            test('search() - 按标题搜索', () => {
+                const notes = [
+                    { id: '1', title: '苹果手机', content: '', tags: [] },
+                    { id: '2', title: '安卓手机', content: '', tags: [] },
+                    { id: '3', title: '电脑', content: '', tags: [] }
+                ];
+                const result = Search.search(notes, '手机');
+                assertEqual(result.length, 2);
+                assertEqual(result[0].id, '1');
+                assertEqual(result[1].id, '2');
+            });
+
+            test('search() - 按内容搜索', () => {
+                const notes = [
+                    { id: '1', title: '笔记1', content: '这是关于JavaScript的笔记', tags: [] },
+                    { id: '2', title: '笔记2', content: '这是关于Python的笔记', tags: [] }
+                ];
+                const result = Search.search(notes, 'JavaScript');
+                assertEqual(result.length, 1);
+                assertEqual(result[0].id, '1');
+            });
+
+            test('search() - 按标签搜索', () => {
+                const notes = [
+                    { id: '1', title: '', content: '', tags: ['重要', '工作'] },
+                    { id: '2', title: '', content: '', tags: ['个人', '生活'] }
+                ];
+                const result = Search.search(notes, '重要');
+                assertEqual(result.length, 1);
+            });
+
+            test('search() - 多关键词空格分隔（AND逻辑）', () => {
+                const notes = [
+                    { id: '1', title: '项目A 进度', content: '', tags: [] },
+                    { id: '2', title: '项目B 进度', content: '', tags: [] },
+                    { id: '3', title: '项目A 计划', content: '', tags: [] }
+                ];
+                const result = Search.search(notes, '项目A 进度');
+                assertEqual(result.length, 1);
+                assertEqual(result[0].id, '1');
+            });
+
+            test('search() - 搜索不区分大小写', () => {
+                const notes = [
+                    { id: '1', title: 'Hello World', content: '', tags: [] }
+                ];
+                assertEqual(Search.search(notes, 'hello').length, 1);
+                assertEqual(Search.search(notes, 'WORLD').length, 1);
+                assertEqual(Search.search(notes, 'hElLo').length, 1);
+            });
+
+            test('fuzzySearch() - 空关键词返回所有笔记（按score=0）', () => {
+                const notes = [
+                    { id: '1', title: 'a', content: '', tags: [] },
+                    { id: '2', title: 'b', content: '', tags: [] }
+                ];
+                const result = Search.fuzzySearch(notes, '');
+                assertEqual(result.length, 2);
+            });
+
+            test('fuzzySearch() - 标题匹配权重高于内容', () => {
+                const notes = [
+                    { id: '1', title: '测试', content: '其他内容', tags: [] },
+                    { id: '2', title: '其他', content: '测试内容', tags: [] }
+                ];
+                const result = Search.fuzzySearch(notes, '测试');
+                assertEqual(result.length, 2);
+                assertEqual(result[0].id, '1', '标题匹配应排在前面');
+                assertEqual(result[1].id, '2', '内容匹配应排在后面');
+            });
+
+            test('highlightText() - 空内容或空关键词返回转义文本', () => {
+                assertEqual(Search.highlightText('', '关键词'), '');
+                assertEqual(Search.highlightText('内容', ''), '内容');
+                assertEqual(Search.highlightText('内容', '   '), '内容');
+                assertEqual(Search.highlightText(null, '关键词'), '');
+                assertEqual(Search.highlightText(undefined, '关键词'), '');
+            });
+
+            test('highlightText() - 普通文本高亮', () => {
+                const result = Search.highlightText('这是测试内容', '测试');
+                assert(result.includes('<span class="highlight">测试</span>'), '应包含高亮标签');
+                assertEqual(result, '这是<span class="highlight">测试</span>内容');
+            });
+
+            test('highlightText() - 高亮不区分大小写', () => {
+                const result = Search.highlightText('Hello WORLD', 'world');
+                assert(result.includes('highlight'), '应包含高亮标签');
+                assert(result.includes('WORLD'), '原文本大小写应保留');
+            });
+
+            test('highlightText() - 多个关键词都高亮', () => {
+                const result = Search.highlightText('苹果香蕉橘子', '苹果 橘子');
+                assert(result.includes('<span class="highlight">苹果</span>'), '第一个关键词应高亮');
+                assert(result.includes('<span class="highlight">橘子</span>'), '第二个关键词应高亮');
+            });
+
+            test('highlightText() - 正则特殊字符不报错且正确高亮', () => {
+                const testCases = [
+                    { text: '包含[括号]的文本', keyword: '[括号]' },
+                    { text: '包含(圆括号)的文本', keyword: '(圆括号)' },
+                    { text: '包含*星号*的文本', keyword: '*星号*' },
+                    { text: '包含+加号+的文本', keyword: '+加号+' },
+                    { text: '包含?问号?的文本', keyword: '?问号?' },
+                    { text: '包含^脱字符^的文本', keyword: '^脱字符^' },
+                    { text: '包含$美元符$的文本', keyword: '$美元符$' },
+                    { text: '包含{花括号}的文本', keyword: '{花括号}' },
+                    { text: '包含|竖线|的文本', keyword: '|竖线|' },
+                    { text: '包含\\反斜杠\\的文本', keyword: '\\反斜杠\\' }
+                ];
+                testCases.forEach(({ text, keyword }) => {
+                    const result = Search.highlightText(text, keyword);
+                    assert(result.includes('highlight'), `关键词"${keyword}"应被高亮`);
+                });
+            });
+
+            test('highlightText() - 先转义HTML再高亮，避免XSS', () => {
+                const scriptTag = '<' + 'script>alert("xss")<' + '/script>';
+                const result = Search.highlightText(scriptTag, 'alert');
+                assert(!result.includes('<script>'), 'script标签应被转义');
+                assert(result.includes('&lt;script&gt;'), 'script标签应被转义为实体');
+                assert(result.includes('highlight'), '关键词应被高亮');
+            });
+
+            test('highlightText() - 多个匹配全部高亮', () => {
+                const result = Search.highlightText('测试测试测试', '测试');
+                const matches = result.match(/<span class="highlight">测试<\/span>/g);
+                assertEqual(matches.length, 3, '三个"测试"都应被高亮');
+            });
+
+            test('getSearchSnippet() - 空内容或空关键词返回截断文本', () => {
+                assertEqual(Search.getSearchSnippet('', '关键词'), '');
+                assertEqual(Search.getSearchSnippet('短文本', ''), '短文本');
+                assertEqual(Search.getSearchSnippet(null, '关键词'), '');
+            });
+
+            test('getSearchSnippet() - 找到关键词时返回前后文', () => {
+                const content = '这是一段很长的文本，其中包含关键词，还有更多内容在后面。';
+                const result = Search.getSearchSnippet(content, '关键词');
+                assert(result.includes('关键词'), '片段应包含关键词');
+            });
+
+            test('getSearchSnippet() - 找不到关键词返回开头', () => {
+                const content = '这是开头，中间是内容，结尾在最后。';
+                const result = Search.getSearchSnippet(content, '不存在');
+                assertEqual(result, content.substring(0, 100));
+            });
+
+            module('categories.js');
+
+            test('getCategoryName() - 存在的分类返回名称', () => {
+                clearTestData();
+                const cat = Storage.createCategory({ name: '工作分类', color: '#f00' });
+                assertEqual(Categories.getCategoryName(cat.id), '工作分类');
+            });
+
+            test('getCategoryName() - null或undefined返回"未分类"', () => {
+                assertEqual(Categories.getCategoryName(null), '未分类');
+                assertEqual(Categories.getCategoryName(undefined), '未分类');
+                assertEqual(Categories.getCategoryName(''), '未分类');
+            });
+
+            test('getCategoryName() - 不存在的分类ID返回"未分类"', () => {
+                assertEqual(Categories.getCategoryName('non-existent-id'), '未分类');
+            });
+
+            test('getCategoryColor() - 存在的分类返回颜色', () => {
+                clearTestData();
+                const cat = Storage.createCategory({ name: '测试', color: '#ff0000' });
+                assertEqual(Categories.getCategoryColor(cat.id), '#ff0000');
+            });
+
+            test('getCategoryColor() - null或undefined返回默认颜色', () => {
+                assertEqual(Categories.getCategoryColor(null), '#94a3b8');
+                assertEqual(Categories.getCategoryColor(undefined), '#94a3b8');
+                assertEqual(Categories.getCategoryColor(''), '#94a3b8');
+            });
+
+            test('getCategoryColor() - 不存在的分类ID返回默认颜色', () => {
+                assertEqual(Categories.getCategoryColor('non-existent-id'), '#94a3b8');
+            });
+
+            test('escapeHtml() - categories模块也有escapeHtml', () => {
+                assertEqual(typeof Categories.escapeHtml, 'function');
+                assertEqual(Categories.escapeHtml('<b>test</b>'), '&lt;b&gt;test&lt;/b&gt;');
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', runTests);
+    </script>
+</body>
+</html>

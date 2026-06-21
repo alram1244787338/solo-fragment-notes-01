@@ -160,6 +160,8 @@ const Search = (function () {
         fuzzySearch,
         highlightText,
         setupSearch,
-        getSearchSnippet
+        getSearchSnippet,
+        escapeRegExp,
+        escapeHtml
     };
 })();

@@ -239,6 +239,8 @@ const Storage = (function () {
         getNoteCountByCategory,
         initDefaultCategories,
         exportData,
-        importData
+        importData,
+        isValidNote,
+        isValidCategory
     };
 })();
