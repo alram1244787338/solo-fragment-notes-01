@@ -62,28 +62,49 @@ const Categories = (function () {
         return category ? category.name : '未分类';
     }
 
-    const _categoryModalState = { saveHandler: null };
+    const _categoryModalState = { saveHandler: null, selectedColor: null, colorPickerBound: false };
+
+    function setupColorPicker() {
+        if (_categoryModalState.colorPickerBound) return;
+        const colorPicker = document.getElementById('colorPicker');
+        if (!colorPicker) return;
+
+        colorPicker.addEventListener('click', (e) => {
+            const opt = e.target.closest('.color-option');
+            if (!opt) return;
+
+            const color = opt.dataset.color;
+            if (!color) return;
+
+            _categoryModalState.selectedColor = color;
+
+            colorPicker.querySelectorAll('.color-option').forEach(o => {
+                o.classList.toggle('active', o === opt);
+            });
+        });
+
+        _categoryModalState.colorPickerBound = true;
+    }
+
+    function setActiveColor(color) {
+        const colorPicker = document.getElementById('colorPicker');
+        if (!colorPicker) return;
+
+        _categoryModalState.selectedColor = color;
+        colorPicker.querySelectorAll('.color-option').forEach(opt => {
+            opt.classList.toggle('active', opt.dataset.color === color);
+        });
+    }
 
     function showCategoryModal(onCreated) {
+        setupColorPicker();
+
         const modal = document.getElementById('categoryModal');
         const nameInput = document.getElementById('categoryName');
-        const colorPicker = document.getElementById('colorPicker');
         const saveBtn = document.getElementById('saveCategoryBtn');
         const form = document.getElementById('categoryForm');
 
-        let selectedColor = '#6366f1';
-
-        const options = colorPicker.querySelectorAll('.color-option');
-        options.forEach(opt => {
-            opt.classList.remove('active');
-            if (opt.dataset.color === selectedColor) opt.classList.add('active');
-
-            opt.onclick = () => {
-                options.forEach(o => o.classList.remove('active'));
-                opt.classList.add('active');
-                selectedColor = opt.dataset.color;
-            };
-        });
+        setActiveColor('#6366f1');
 
         modal.querySelector('.modal-header h3').textContent = '新建分类';
         nameInput.value = '';
@@ -107,7 +128,10 @@ const Categories = (function () {
                 return;
             }
 
-            const category = Storage.createCategory({ name, color: selectedColor });
+            const category = Storage.createCategory({
+                name,
+                color: _categoryModalState.selectedColor || '#6366f1'
+            });
             Toast.show('分类创建成功', 'success');
             close();
             if (onCreated) onCreated(category);
@@ -123,27 +147,16 @@ const Categories = (function () {
     }
 
     function showEditCategoryModal(category, onUpdated) {
+        setupColorPicker();
+
         const modal = document.getElementById('categoryModal');
         const nameInput = document.getElementById('categoryName');
-        const colorPicker = document.getElementById('colorPicker');
         const saveBtn = document.getElementById('saveCategoryBtn');
         const form = document.getElementById('categoryForm');
 
         modal.querySelector('.modal-header h3').textContent = '编辑分类';
 
-        let selectedColor = category.color;
-
-        const options = colorPicker.querySelectorAll('.color-option');
-        options.forEach(opt => {
-            opt.classList.remove('active');
-            if (opt.dataset.color === selectedColor) opt.classList.add('active');
-
-            opt.onclick = () => {
-                options.forEach(o => o.classList.remove('active'));
-                opt.classList.add('active');
-                selectedColor = opt.dataset.color;
-            };
-        });
+        setActiveColor(category.color);
 
         nameInput.value = category.name;
         modal.classList.add('active');
@@ -162,7 +175,10 @@ const Categories = (function () {
                 return;
             }
 
-            const updated = Storage.updateCategory(category.id, { name, color: selectedColor });
+            const updated = Storage.updateCategory(category.id, {
+                name,
+                color: _categoryModalState.selectedColor || category.color
+            });
             Toast.show('分类已更新', 'success');
             close();
             if (onUpdated) onUpdated(updated);

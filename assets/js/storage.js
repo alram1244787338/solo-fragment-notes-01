@@ -168,19 +168,57 @@ const Storage = (function () {
     }
 
     function exportData() {
-        return {
+        const data = {
             notes: getNotes(),
             categories: getCategories(),
             exportedAt: Date.now(),
             version: '1.0'
         };
+        return data;
+    }
+
+    function isValidNote(note) {
+        if (!note || typeof note !== 'object') return false;
+        if (typeof note.id !== 'string' || !note.id) return false;
+        if (typeof note.title !== 'string') return false;
+        if (typeof note.content !== 'string') return false;
+        if (note.categoryId !== null && typeof note.categoryId !== 'string') return false;
+        if (!Array.isArray(note.tags)) return false;
+        if (typeof note.createdAt !== 'number' || typeof note.updatedAt !== 'number') return false;
+        return true;
+    }
+
+    function isValidCategory(cat) {
+        if (!cat || typeof cat !== 'object') return false;
+        if (typeof cat.id !== 'string' || !cat.id) return false;
+        if (typeof cat.name !== 'string' || !cat.name) return false;
+        if (typeof cat.color !== 'string' || !cat.color) return false;
+        if (typeof cat.createdAt !== 'number') return false;
+        return true;
     }
 
     function importData(data) {
         if (!data || typeof data !== 'object') return false;
-        if (Array.isArray(data.notes)) saveNotes(data.notes);
-        if (Array.isArray(data.categories)) saveCategories(data.categories);
-        return true;
+
+        let imported = false;
+
+        if (Array.isArray(data.notes)) {
+            const validNotes = data.notes.filter(isValidNote);
+            if (validNotes.length > 0 || data.notes.length === 0) {
+                saveNotes(data.notes);
+                imported = true;
+            }
+        }
+
+        if (Array.isArray(data.categories)) {
+            const validCats = data.categories.filter(isValidCategory);
+            if (validCats.length > 0 || data.categories.length === 0) {
+                saveCategories(data.categories);
+                imported = true;
+            }
+        }
+
+        return imported;
     }
 
     return {

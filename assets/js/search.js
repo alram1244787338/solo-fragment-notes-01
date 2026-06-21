@@ -1,6 +1,16 @@
 const Search = (function () {
     let debounceTimer = null;
 
+    function escapeRegExp(str) {
+        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
     function search(notes, keyword) {
         if (!keyword || !keyword.trim()) {
             return notes;
@@ -20,12 +30,6 @@ const Search = (function () {
         });
     }
 
-    function escapeHtml(str) {
-        const div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
-    }
-
     function highlightText(text, keyword) {
         if (!text || !keyword || !keyword.trim()) {
             return escapeHtml(text || '');
@@ -34,14 +38,20 @@ const Search = (function () {
         const kw = keyword.trim();
         if (!kw) return escapeHtml(text || '');
 
-        const escaped = escapeHtml(text);
+        const escapedText = escapeHtml(text);
         const keywords = kw.split(/\s+/).filter(k => k.length > 0);
-        let result = escaped;
+        let result = escapedText;
 
         keywords.forEach(k => {
-            const safeK = escapeHtml(k);
-            const regex = new RegExp(escapeRegExp(safeK), 'gi');
-            result = result.replace(regex, match => `<span class="highlight">${match}</span>`);
+            const escapedKeyword = escapeHtml(k);
+            const safePattern = escapeRegExp(escapedKeyword);
+            if (!safePattern) return;
+            try {
+                const regex = new RegExp(safePattern, 'gi');
+                result = result.replace(regex, match => `<span class="highlight">${match}</span>`);
+            } catch (e) {
+                console.warn('Regex error in highlightText:', e);
+            }
         });
 
         return result;
@@ -68,10 +78,6 @@ const Search = (function () {
             input.removeEventListener('input', handler);
             clearTimeout(debounceTimer);
         };
-    }
-
-    function escapeRegExp(str) {
-        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
     function fuzzySearch(notes, keyword) {

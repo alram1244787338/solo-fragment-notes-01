@@ -1001,8 +1001,8 @@ body.dark {
 }
 
 body.dark .highlight {
-    background: #854d0e;
-    color: #fef9c3;
+    background: #fbbf24;
+    color: #1e293b;
 }
 
 body.dark input,
@@ -1051,7 +1051,7 @@ body.dark .icon-btn:hover {
 }
 
 body.dark .sidebar-action-btn:hover {
-    background: #334155;
+    background: #475569;
 }
 
 body.dark .note-card {
